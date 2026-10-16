@@ -1,0 +1,21 @@
+# A web frontend exposed through a Gateway API HTTPRoute instead of Ingress.
+image:
+  repository: ghcr.io/example/web
+  tag: "1.0.0"
+
+service:
+  port: 3000
+
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: public-gateway
+      namespace: gateway-system
+      sectionName: https
+  hostnames:
+    - www.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /

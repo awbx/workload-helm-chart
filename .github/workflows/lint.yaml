@@ -1,0 +1,31 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: |
+          helm lint charts/workload
+          for f in examples/*.yaml; do
+            helm lint charts/workload -f "$f"
+          done
+
+      - name: Validate rendered manifests
+        run: |
+          for f in "" examples/*.yaml; do
+            echo "::group::${f:-default values}"
+            helm template test charts/workload ${f:+-f "$f"} \
+              | docker run --rm -i ghcr.io/yannh/kubeconform:v0.6.7 \
+                  -strict -summary -ignore-missing-schemas -
+            echo "::endgroup::"
+          done

@@ -1,0 +1,123 @@
+# Default values for the workload chart.
+# One chart for any containerised service: web app, API, worker or stateful
+# service. Override what you need per release.
+
+global:
+  # Pull secret names shared by all releases (a list of strings). When set,
+  # these take precedence over `imagePullSecrets` below.
+  imagePullSecrets: []
+
+# Pull secrets for this release, as `- name: my-secret` entries.
+imagePullSecrets: []
+
+replicaCount: 1
+
+# Deployment update strategy. Anything holding a ReadWriteOnce volume needs
+# `type: Recreate`: the default RollingUpdate waits for a new pod that cannot
+# attach the volume until the old one lets go, and never converges.
+strategy: {}
+
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  # Falls back to the chart appVersion when empty.
+  tag: "stable"
+  # Set to "sha256:..." to pin by digest. When set it wins over `tag`. Use it
+  # for images whose on-disk data format is version-dependent, where a moved
+  # tag would silently break existing data.
+  digest: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Annotations added to every resource the chart renders (and to the pod).
+commonAnnotations: {}
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  # Defaults to the release fullname when create is true.
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  # Also used as the container port (named `http`).
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Gateway API HTTPRoute, as an alternative to Ingress.
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - chart-example.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+resources: {}
+#  requests:
+#    cpu: 100m
+#    memory: 128Mi
+#  limits:
+#    memory: 256Mi
+
+# Probes are passed through as-is. Example:
+#  readinessProbe:
+#    httpGet:
+#      path: /healthz
+#      port: http
+startupProbe: {}
+livenessProbe: {}
+readinessProbe: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+volumes: []
+volumeMounts: []
+
+# Names of ConfigMaps / Secrets loaded whole into the environment (envFrom).
+configMapRefs: []
+secretRefs: []
+env: []
+initContainers: []
+
+# Override the image's ENTRYPOINT / CMD, e.g. for applications that take their
+# configuration as command-line arguments rather than environment variables.
+command: []
+args: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

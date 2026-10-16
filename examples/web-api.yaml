@@ -1,0 +1,40 @@
+# A stateless HTTP API behind an Ingress, autoscaled on CPU.
+image:
+  repository: ghcr.io/example/api
+  tag: "2.4.1"
+
+service:
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: api-example-com-tls
+      hosts:
+        - api.example.com
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+
+secretRefs:
+  - api-env

@@ -1,0 +1,8 @@
+# Artifact Hub repository metadata. Pushed to the OCI registry as
+# ghcr.io/awbx/charts/workload:artifacthub.io by the release workflow.
+# After adding the repository on artifacthub.io, paste its ID below to get the
+# "Verified publisher" badge.
+# repositoryID: 00000000-0000-0000-0000-000000000000
+owners:
+  - name: Abdelhadi Sabani
+    email: asabani.work@gmail.com

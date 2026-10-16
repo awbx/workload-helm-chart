@@ -1,0 +1,33 @@
+apiVersion: v2
+name: workload
+description: >-
+  Generic Helm chart for any Kubernetes workload: Deployment, Service,
+  Ingress or Gateway API HTTPRoute, HPA and ServiceAccount. One chart for web
+  apps, APIs, workers and stateful services.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/awbx/workload-helm-chart
+sources:
+  - https://github.com/awbx/workload-helm-chart
+keywords:
+  - generic
+  - universal
+  - workload
+  - deployment
+  - microservice
+  - web
+  - api
+  - app-template
+  - gateway-api
+  - httproute
+maintainers:
+  - name: Abdelhadi Sabani
+    email: asabani.work@gmail.com
+    url: https://github.com/awbx
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/links: |
+    - name: Source
+      url: https://github.com/awbx/workload-helm-chart

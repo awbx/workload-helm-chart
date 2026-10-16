@@ -1,0 +1,70 @@
+name: Release
+
+# Publishes the chart to GHCR as an OCI artifact whenever charts/workload
+# lands on main with a version that has not been released yet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - charts/workload/**
+      - artifacthub-repo.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  REPOSITORY: ${{ github.repository_owner }}/charts
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - uses: oras-project/setup-oras@v1
+
+      - name: Read chart version
+        id: chart
+        run: |
+          version=$(yq '.version' charts/workload/Chart.yaml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse "workload-$version" >/dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+
+      - name: Package and push chart
+        if: steps.chart.outputs.released == 'false'
+        run: |
+          helm package charts/workload
+          helm push "workload-${{ steps.chart.outputs.version }}.tgz" "oci://$REGISTRY/${REPOSITORY,,}"
+
+      - name: Push Artifact Hub metadata
+        run: |
+          oras push "$REGISTRY/${REPOSITORY,,}/workload:artifacthub.io" \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
+
+      - name: Create GitHub release
+        if: steps.chart.outputs.released == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "workload-${{ steps.chart.outputs.version }}" \
+            "workload-${{ steps.chart.outputs.version }}.tgz" \
+            --title "workload ${{ steps.chart.outputs.version }}" \
+            --generate-notes

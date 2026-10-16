@@ -1,0 +1,25 @@
+# A single-replica service holding a ReadWriteOnce volume, with a custom
+# command. `Recreate` lets the new pod attach the volume after the old one
+# releases it.
+image:
+  repository: docker.io/library/redis
+  tag: "7.4"
+
+service:
+  port: 6379
+
+strategy:
+  type: Recreate
+
+args: ["--appendonly", "yes"]
+
+volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: redis-data
+volumeMounts:
+  - name: data
+    mountPath: /data
+
+podSecurityContext:
+  fsGroup: 999
