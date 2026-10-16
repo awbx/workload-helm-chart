@@ -5,7 +5,7 @@ description: >-
   Ingress or Gateway API HTTPRoute, HPA and ServiceAccount. One chart for web
   apps, APIs, workers and stateful services.
 type: application
-version: 1.0.0
+version: 1.0.1
 appVersion: "1.0.0"
 home: https://github.com/awbx/workload-helm-chart
 sources:

@@ -20,7 +20,7 @@ strategy: {}
 image:
   repository: nginx
   pullPolicy: IfNotPresent
-  # Falls back to the chart appVersion when empty.
+  # Set this to your image tag. If empty, the chart appVersion is used.
   tag: "stable"
   # Set to "sha256:..." to pin by digest. When set it wins over `tag`. Use it
   # for images whose on-disk data format is version-dependent, where a moved

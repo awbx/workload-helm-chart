@@ -7,7 +7,7 @@ web apps, APIs, background workers and stateful services. Use the same chart
 for every service and override only the values you need for each one.
 
 ```sh
-helm install my-api oci://ghcr.io/awbx/charts/workload --version 1.0.0 \
+helm install my-api oci://ghcr.io/awbx/charts/workload --version 1.0.1 \
   --set image.repository=ghcr.io/example/api --set image.tag=2.4.1
 ```
 
@@ -68,7 +68,7 @@ spec:
 source:
   repoURL: ghcr.io/awbx/charts
   chart: workload
-  targetRevision: 1.0.0
+  targetRevision: 1.0.1
   helm:
     valuesObject:
       image:
