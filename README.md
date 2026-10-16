@@ -1,5 +1,7 @@
 # workload-helm-chart
 
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/workload)](https://artifacthub.io/packages/search?repo=workload)
+
 A generic Helm chart for deploying any containerised service on Kubernetes:
 web apps, APIs, background workers and stateful services. Use the same chart
 for every service and override only the values you need for each one.
