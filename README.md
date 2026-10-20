@@ -32,6 +32,17 @@ dropped and no service account token. A typo in a value name fails
 `helm install` instead of being silently ignored, because the chart ships a
 `values.schema.json`.
 
+### Verifying the signature
+
+Every release is signed with [cosign](https://github.com/sigstore/cosign)
+keyless signing from the release workflow:
+
+```sh
+cosign verify ghcr.io/awbx/charts/workload:2.0.0 \
+  --certificate-identity-regexp '^https://github.com/awbx/workload-helm-chart/\.github/workflows/release\.yaml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## Examples
 
 Ready-to-use values files are in [`examples/`](examples):
