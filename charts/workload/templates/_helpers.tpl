@@ -60,3 +60,24 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Port the container listens on. Defaults to the Service port.
+*/}}
+{{- define "workload.containerPort" -}}
+{{- .Values.containerPort | default .Values.service.port }}
+{{- end }}
+
+{{/*
+envFrom reference: a plain name, or {name, optional}.
+*/}}
+{{- define "workload.envFromRef" -}}
+{{- if kindIs "string" . }}
+name: {{ . }}
+{{- else }}
+name: {{ .name }}
+{{- if hasKey . "optional" }}
+optional: {{ .optional }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,6 +1,7 @@
 # Default values for the workload chart.
 # One chart for any containerised service: web app, API, worker or stateful
-# service. Override what you need per release.
+# service. Override what you need per release. Every value is described in the
+# README; values.schema.json rejects unknown keys.
 
 global:
   # Pull secret names shared by all releases (a list of strings). When set,
@@ -10,7 +11,11 @@ global:
 # Pull secrets for this release, as `- name: my-secret` entries.
 imagePullSecrets: []
 
+# Ignored when autoscaling is enabled.
 replicaCount: 1
+
+# Old ReplicaSets kept for `kubectl rollout undo`.
+revisionHistoryLimit: 10
 
 # Deployment update strategy. Anything holding a ReadWriteOnce volume needs
 # `type: Recreate`: the default RollingUpdate waits for a new pod that cannot
@@ -18,10 +23,10 @@ replicaCount: 1
 strategy: {}
 
 image:
-  repository: nginx
+  repository: docker.io/nginxinc/nginx-unprivileged
   pullPolicy: IfNotPresent
   # Set this to your image tag. If empty, the chart appVersion is used.
-  tag: "stable"
+  tag: "stable-alpine"
   # Set to "sha256:..." to pin by digest. When set it wins over `tag`. Use it
   # for images whose on-disk data format is version-dependent, where a moved
   # tag would silently break existing data.
@@ -35,22 +40,40 @@ commonAnnotations: {}
 
 serviceAccount:
   create: true
-  automount: true
+  # Mount the service account token into the pod. Off by default: few
+  # applications call the Kubernetes API.
+  automount: false
   annotations: {}
-  # Defaults to the release fullname when create is true.
+  # Defaults to the release fullname when create is true, else "default".
   name: ""
 
 podAnnotations: {}
 podLabels: {}
 
-podSecurityContext: {}
+# Pod security context. The defaults (with `securityContext` below) meet the
+# `restricted` Pod Security Standard. Override single keys, or set a key to
+# null to drop it, e.g. `--set podSecurityContext.runAsNonRoot=null`.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
-securityContext: {}
+# Container security context for the main container.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+priorityClassName: ""
 
 service:
   type: ClusterIP
-  # Also used as the container port (named `http`).
-  port: 3000
+  port: 8080
+
+# Port the container listens on, named `http`. Empty means `service.port`.
+# Set it when the two differ, e.g. Service 80 to container 8080.
+containerPort: ""
 
 ingress:
   enabled: false
@@ -66,7 +89,9 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-# Gateway API HTTPRoute, as an alternative to Ingress.
+# Gateway API HTTPRoute, as an alternative to Ingress. Each rule takes
+# `matches`, `filters`, `timeouts` and optionally `backendRefs`; without
+# `backendRefs` the rule targets this release's Service.
 httpRoute:
   enabled: false
   annotations: {}
@@ -81,14 +106,23 @@ httpRoute:
             type: PathPrefix
             value: /
 
-resources: {}
-#  requests:
-#    cpu: 100m
-#    memory: 128Mi
+# Small requests so the pod is accepted by namespaces with a ResourceQuota.
+# Set your own; `resources: null` renders none.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
 #  limits:
 #    memory: 256Mi
 
-# Probes are passed through as-is. Example:
+# Shortcut: set `probes.http.path` to get HTTP liveness and readiness probes.
+# An explicit livenessProbe / readinessProbe below wins over the shortcut.
+probes:
+  http:
+    path: ""
+    port: http
+
+# Probes, passed through as-is. Example:
 #  readinessProbe:
 #    httpGet:
 #      path: /healthz
@@ -97,6 +131,15 @@ startupProbe: {}
 livenessProbe: {}
 readinessProbe: {}
 
+# Container lifecycle hooks. A short preStop sleep gives a load balancer or
+# gateway time to stop routing before the process gets SIGTERM:
+#  lifecycle:
+#    preStop:
+#      sleep:
+#        seconds: 5
+lifecycle: {}
+terminationGracePeriodSeconds: 30
+
 autoscaling:
   enabled: false
   minReplicas: 1
@@ -104,14 +147,41 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
+# PodDisruptionBudget. Set minAvailable or maxUnavailable (a number or a
+# percentage); with neither, maxUnavailable is 1.
+pdb:
+  enabled: false
+  minAvailable: ""
+  maxUnavailable: ""
+
+# Prometheus Operator PodMonitor or ServiceMonitor. Rendered only when the
+# monitoring.coreos.com/v1 API exists in the cluster (with `helm template`,
+# pass `--api-versions monitoring.coreos.com/v1`).
+metrics:
+  enabled: false
+  # PodMonitor or ServiceMonitor.
+  kind: PodMonitor
+  # Metrics port, exposed as `metrics`. Empty means scrape the `http` port.
+  port: ""
+  path: /metrics
+  interval: 30s
+  scrapeTimeout: ""
+  # Extra labels, e.g. the `release` label your Prometheus selects on.
+  labels: {}
+
 volumes: []
 volumeMounts: []
 
-# Names of ConfigMaps / Secrets loaded whole into the environment (envFrom).
+# ConfigMaps / Secrets loaded whole into the environment (envFrom). Each entry
+# is a name, or `{name: x, optional: true}` for one that may not exist yet.
 configMapRefs: []
 secretRefs: []
 env: []
+
+# Init containers and extra containers (sidecars). Both are templated, so
+# values like "{{ .Release.Name }}" work.
 initContainers: []
+extraContainers: []
 
 # Override the image's ENTRYPOINT / CMD, e.g. for applications that take their
 # configuration as command-line arguments rather than environment variables.
@@ -121,3 +191,14 @@ args: []
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Spread replicas over nodes or zones. `labelSelector` defaults to this
+# release's pods when omitted:
+#  topologySpreadConstraints:
+#    - maxSkew: 1
+#      topologyKey: topology.kubernetes.io/zone
+#      whenUnsatisfiable: ScheduleAnyway
+topologySpreadConstraints: []
+
+# Any extra manifests, as objects or strings. Both are templated.
+extraObjects: []

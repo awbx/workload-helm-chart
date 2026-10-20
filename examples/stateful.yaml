@@ -21,5 +21,9 @@ volumeMounts:
   - name: data
     mountPath: /data
 
+# The redis image starts as root unless told otherwise; run it as its own
+# user so the default `runAsNonRoot: true` admits it.
 podSecurityContext:
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 999

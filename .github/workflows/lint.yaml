@@ -16,15 +16,19 @@ jobs:
       - name: helm lint
         run: |
           helm lint charts/workload
-          for f in examples/*.yaml; do
+          for f in examples/*.yaml charts/workload/ci/*.yaml; do
             helm lint charts/workload -f "$f"
           done
 
+      - name: README documents every value
+        run: ./scripts/check-readme-values.sh
+
       - name: Validate rendered manifests
         run: |
-          for f in "" examples/*.yaml; do
+          for f in "" examples/*.yaml charts/workload/ci/*.yaml; do
             echo "::group::${f:-default values}"
             helm template test charts/workload ${f:+-f "$f"} \
+                --api-versions monitoring.coreos.com/v1 \
               | docker run --rm -i ghcr.io/yannh/kubeconform:v0.6.7 \
                   -strict -summary -ignore-missing-schemas -
             echo "::endgroup::"

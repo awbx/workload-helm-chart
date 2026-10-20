@@ -12,6 +12,7 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   {{- with .Values.strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
@@ -47,13 +48,18 @@ spec:
         {{- end }}
       {{- end }}
       serviceAccountName: {{ include "workload.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.initContainers }}
       initContainers:
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       containers:
         - name: {{ include "workload.fullname" . }}
@@ -73,17 +79,22 @@ spec:
           {{- end }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ include "workload.containerPort" . }}
               protocol: TCP
+            {{- if and .Values.metrics.enabled .Values.metrics.port }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+            {{- end }}
           {{- if or .Values.configMapRefs .Values.secretRefs }}
           envFrom:
             {{- range .Values.configMapRefs }}
             - configMapRef:
-                name: {{ . }}
+                {{- include "workload.envFromRef" . | trim | nindent 16 }}
             {{- end }}
             {{- range .Values.secretRefs }}
             - secretRef:
-                name: {{ . }}
+                {{- include "workload.envFromRef" . | trim | nindent 16 }}
             {{- end }}
           {{- end }}
           {{- with .Values.env }}
@@ -94,12 +105,26 @@ spec:
           startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.livenessProbe }}
+          {{- if .Values.livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{- else if .Values.probes.http.path }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.http.path }}
+              port: {{ .Values.probes.http.port }}
           {{- end }}
-          {{- with .Values.readinessProbe }}
+          {{- if .Values.readinessProbe }}
           readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- else if .Values.probes.http.path }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.http.path }}
+              port: {{ .Values.probes.http.port }}
+          {{- end }}
+          {{- with .Values.lifecycle }}
+          lifecycle:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.resources }}
@@ -110,9 +135,12 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+        {{- with .Values.extraContainers }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}
       {{- with .Values.volumes }}
       volumes:
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -125,4 +153,11 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        {{- $default := dict "labelSelector" (dict "matchLabels" (include "workload.selectorLabels" $ | fromYaml)) }}
+        - {{- toYaml (merge (deepCopy .) $default) | nindent 10 }}
+        {{- end }}
       {{- end }}
