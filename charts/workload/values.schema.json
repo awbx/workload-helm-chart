@@ -1,211 +1,1175 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "workload chart values",
+  "description": "Values for the workload Helm chart. Descriptions here are the source of the README values tables; defaults are copied from values.yaml by scripts/gen-docs.py.",
   "type": "object",
   "additionalProperties": false,
   "definitions": {
-    "intOrString": { "type": ["integer", "string"] },
-    "object": { "type": "object" },
-    "array": { "type": "array" },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "portOrEmpty": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/port"
+        },
+        {
+          "type": "string",
+          "maxLength": 0
+        }
+      ]
+    },
+    "portNameOrNumber": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/port"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 15
+        }
+      ]
+    },
+    "countOrPercent": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^([0-9]+%?)?$"
+        }
+      ]
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^([0-9]+(ms|s|m|h))*$"
+    },
+    "dnsLabel": {
+      "type": "string",
+      "maxLength": 63,
+      "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$"
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "named": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "namedList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/named"
+      }
+    },
+    "probe": {
+      "type": "object",
+      "description": "A Kubernetes probe: one of httpGet, tcpSocket, grpc or exec, plus timing fields.",
+      "properties": {
+        "httpGet": {
+          "type": "object",
+          "required": [
+            "port"
+          ]
+        },
+        "tcpSocket": {
+          "type": "object",
+          "required": [
+            "port"
+          ]
+        },
+        "grpc": {
+          "type": "object",
+          "required": [
+            "port"
+          ]
+        },
+        "exec": {
+          "type": "object",
+          "required": [
+            "command"
+          ]
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "successThreshold": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
     "envFromRef": {
       "oneOf": [
-        { "type": "string", "minLength": 1 },
+        {
+          "type": "string",
+          "minLength": 1
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name"],
+          "required": [
+            "name"
+          ],
           "properties": {
-            "name": { "type": "string", "minLength": 1 },
-            "optional": { "type": "boolean" }
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "optional": {
+              "type": "boolean"
+            }
           }
         }
       ]
+    },
+    "container": {
+      "type": "object",
+      "required": [
+        "name",
+        "image"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/dnsLabel"
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "properties": {
     "global": {
       "type": "object",
+      "description": "Values shared with parent charts.",
       "properties": {
-        "imagePullSecrets": { "type": "array", "items": { "type": "string" } }
+        "imagePullSecrets": {
+          "type": "array",
+          "description": "Pull secret names (plain strings) shared across releases. When set, wins over `imagePullSecrets`.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "examples": [
+            [
+              "registry-credentials"
+            ]
+          ],
+          "default": []
+        }
       }
     },
-    "imagePullSecrets": { "$ref": "#/definitions/array" },
-    "replicaCount": { "type": "integer", "minimum": 0 },
-    "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
-    "strategy": { "$ref": "#/definitions/object" },
+    "imagePullSecrets": {
+      "description": "Pull secrets for this release, as `- name: my-secret` entries.",
+      "examples": [
+        [
+          {
+            "name": "registry-credentials"
+          }
+        ]
+      ],
+      "allOf": [
+        {
+          "$ref": "#/definitions/namedList"
+        }
+      ],
+      "default": []
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of replicas. Ignored when `autoscaling.enabled` is true.",
+      "default": 1
+    },
+    "revisionHistoryLimit": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Old ReplicaSets kept for `kubectl rollout undo`.",
+      "default": 10
+    },
+    "strategy": {
+      "type": "object",
+      "description": "Deployment update strategy. Use `type: Recreate` for pods holding a ReadWriteOnce volume.",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "RollingUpdate",
+            "Recreate"
+          ]
+        },
+        "rollingUpdate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxSurge": {
+              "$ref": "#/definitions/countOrPercent"
+            },
+            "maxUnavailable": {
+              "$ref": "#/definitions/countOrPercent"
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "type": "Recreate"
+        }
+      ],
+      "default": {}
+    },
     "image": {
       "type": "object",
+      "description": "Container image.",
       "additionalProperties": false,
-      "required": ["repository"],
+      "required": [
+        "repository"
+      ],
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] },
-        "tag": { "type": "string" },
-        "digest": { "type": "string", "pattern": "^(sha256:[a-f0-9]{64})?$" }
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image repository, including the registry.",
+          "examples": [
+            "ghcr.io/example/api"
+          ],
+          "default": "docker.io/nginxinc/nginx-unprivileged"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Image tag. The chart `appVersion` when empty.",
+          "examples": [
+            "2.4.1"
+          ],
+          "default": "stable-alpine"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^(sha256:[a-f0-9]{64})?$",
+          "description": "Image digest (`sha256:...`). Wins over `tag`; use it for images whose data format depends on the exact version.",
+          "default": ""
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ],
+          "description": "Image pull policy.",
+          "default": "IfNotPresent"
+        }
       }
     },
-    "nameOverride": { "type": "string" },
-    "fullnameOverride": { "type": "string" },
-    "commonAnnotations": { "$ref": "#/definitions/object" },
+    "nameOverride": {
+      "description": "Replaces the chart name (`workload`) in resource names.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/dnsLabel"
+        }
+      ],
+      "default": ""
+    },
+    "fullnameOverride": {
+      "description": "Replaces the full resource name (`<release>-workload`).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/dnsLabel"
+        }
+      ],
+      "default": ""
+    },
+    "commonAnnotations": {
+      "description": "Annotations added to every resource and to the pod.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/stringMap"
+        }
+      ],
+      "default": {}
+    },
     "serviceAccount": {
       "type": "object",
+      "description": "ServiceAccount the pod runs as.",
       "additionalProperties": false,
       "properties": {
-        "create": { "type": "boolean" },
-        "automount": { "type": "boolean" },
-        "annotations": { "$ref": "#/definitions/object" },
-        "name": { "type": "string" }
+        "create": {
+          "type": "boolean",
+          "description": "Create a ServiceAccount for this release.",
+          "default": true
+        },
+        "automount": {
+          "type": "boolean",
+          "description": "Mount the service account token into the pod. Only needed by applications that call the Kubernetes API.",
+          "default": false
+        },
+        "annotations": {
+          "description": "ServiceAccount annotations, e.g. for cloud IAM roles.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/stringMap"
+            }
+          ],
+          "default": {}
+        },
+        "name": {
+          "description": "ServiceAccount name. The release fullname when creating, `default` when not.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/dnsLabel"
+            }
+          ],
+          "default": ""
+        }
       }
     },
-    "podAnnotations": { "$ref": "#/definitions/object" },
-    "podLabels": { "$ref": "#/definitions/object" },
-    "podSecurityContext": { "$ref": "#/definitions/object" },
-    "securityContext": { "$ref": "#/definitions/object" },
-    "priorityClassName": { "type": "string" },
+    "podAnnotations": {
+      "description": "Pod annotations.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/stringMap"
+        }
+      ],
+      "default": {}
+    },
+    "podLabels": {
+      "description": "Extra pod labels.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/stringMap"
+        }
+      ],
+      "default": {}
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "description": "Pod security context (pass-through). The default meets the `restricted` Pod Security Standard; set a key to null to drop it.",
+      "examples": [
+        {
+          "runAsUser": 1000,
+          "runAsGroup": 1000,
+          "fsGroup": 1000
+        }
+      ],
+      "default": {
+        "runAsNonRoot": true,
+        "seccompProfile": {
+          "type": "RuntimeDefault"
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "description": "Security context of the main container (pass-through). Add capabilities back under `capabilities.add`.",
+      "default": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        }
+      }
+    },
+    "priorityClassName": {
+      "type": "string",
+      "description": "PriorityClass of the pod.",
+      "default": ""
+    },
     "service": {
       "type": "object",
+      "description": "Service in front of the pods.",
       "additionalProperties": false,
       "properties": {
-        "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+        "type": {
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer"
+          ],
+          "description": "Service type.",
+          "default": "ClusterIP"
+        },
+        "port": {
+          "description": "Service port. Also the container port unless `containerPort` is set.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/port"
+            }
+          ],
+          "default": 8080
+        }
       }
     },
     "containerPort": {
-      "oneOf": [
-        { "type": "integer", "minimum": 1, "maximum": 65535 },
-        { "type": "string", "maxLength": 0 }
-      ]
+      "description": "Port the container listens on, named `http`. `service.port` when empty.",
+      "examples": [
+        8080
+      ],
+      "allOf": [
+        {
+          "$ref": "#/definitions/portOrEmpty"
+        }
+      ],
+      "default": ""
     },
     "ingress": {
       "type": "object",
+      "description": "Ingress for the Service.",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "className": { "type": "string" },
-        "annotations": { "$ref": "#/definitions/object" },
+        "enabled": {
+          "type": "boolean",
+          "description": "Render an Ingress.",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "description": "IngressClass name.",
+          "examples": [
+            "nginx"
+          ],
+          "default": ""
+        },
+        "annotations": {
+          "description": "Ingress annotations.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/stringMap"
+            }
+          ],
+          "default": {}
+        },
         "hosts": {
           "type": "array",
+          "description": "Hosts, each with a list of `paths` (`path`, `pathType`).",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["host"],
+            "required": [
+              "host",
+              "paths"
+            ],
             "properties": {
-              "host": { "type": "string" },
+              "host": {
+                "type": "string",
+                "minLength": 1
+              },
               "paths": {
                 "type": "array",
+                "minItems": 1,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["path"],
+                  "required": [
+                    "path"
+                  ],
                   "properties": {
-                    "path": { "type": "string" },
-                    "pathType": { "enum": ["Prefix", "Exact", "ImplementationSpecific"] }
+                    "path": {
+                      "type": "string",
+                      "pattern": "^/"
+                    },
+                    "pathType": {
+                      "enum": [
+                        "Prefix",
+                        "Exact",
+                        "ImplementationSpecific"
+                      ]
+                    }
                   }
                 }
               }
             }
-          }
+          },
+          "default": [
+            {
+              "host": "chart-example.local",
+              "paths": [
+                {
+                  "path": "/",
+                  "pathType": "Prefix"
+                }
+              ]
+            }
+          ]
         },
-        "tls": { "$ref": "#/definitions/array" }
-      }
-    },
-    "httpRoute": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "annotations": { "$ref": "#/definitions/object" },
-        "parentRefs": { "$ref": "#/definitions/array" },
-        "hostnames": { "type": "array", "items": { "type": "string" } },
-        "rules": {
+        "tls": {
           "type": "array",
+          "description": "TLS entries, each with `secretName` and `hosts`.",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "matches": { "$ref": "#/definitions/array" },
-              "filters": { "$ref": "#/definitions/array" },
-              "timeouts": { "$ref": "#/definitions/object" },
-              "backendRefs": { "$ref": "#/definitions/array" }
+              "secretName": {
+                "type": "string"
+              },
+              "hosts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "httpRoute": {
+      "type": "object",
+      "description": "Gateway API HTTPRoute for the Service, as an alternative to Ingress.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Render an HTTPRoute.",
+          "default": false
+        },
+        "annotations": {
+          "description": "HTTPRoute annotations.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/stringMap"
+            }
+          ],
+          "default": {}
+        },
+        "parentRefs": {
+          "description": "Gateways to attach to (pass-through), each with a `name`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/namedList"
+            }
+          ],
+          "default": [
+            {
+              "name": "gateway",
+              "sectionName": "http"
+            }
+          ]
+        },
+        "hostnames": {
+          "type": "array",
+          "description": "Hostnames the route matches.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [
+            "chart-example.local"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "description": "Rules with `matches`, `filters`, `timeouts` and `backendRefs`. A rule without `backendRefs` targets this release's Service.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "matches": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "filters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ]
+                }
+              },
+              "timeouts": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "request": {
+                    "$ref": "#/definitions/duration"
+                  },
+                  "backendRequest": {
+                    "$ref": "#/definitions/duration"
+                  }
+                }
+              },
+              "backendRefs": {
+                "$ref": "#/definitions/namedList"
+              }
+            }
+          },
+          "default": [
+            {
+              "matches": [
+                {
+                  "path": {
+                    "type": "PathPrefix",
+                    "value": "/"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Container resources. Set to null for none.",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "claims": {
+          "type": "array"
+        }
+      },
+      "examples": [
+        {
+          "requests": {
+            "cpu": "100m",
+            "memory": "128Mi"
+          },
+          "limits": {
+            "memory": "256Mi"
+          }
+        }
+      ],
+      "default": {
+        "requests": {
+          "cpu": "50m",
+          "memory": "64Mi"
+        }
+      }
+    },
+    "probes": {
+      "type": "object",
+      "description": "Probe shortcuts.",
+      "additionalProperties": false,
+      "properties": {
+        "http": {
+          "type": "object",
+          "description": "HTTP liveness and readiness probes from one path.",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "^(/.*)?$",
+              "description": "When set, renders HTTP liveness and readiness probes on this path.",
+              "examples": [
+                "/healthz"
+              ],
+              "default": ""
+            },
+            "port": {
+              "description": "Port of the shortcut probes, by name or number.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/portNameOrNumber"
+                }
+              ],
+              "default": "http"
             }
           }
         }
       }
     },
-    "resources": { "$ref": "#/definitions/object" },
-    "probes": {
+    "startupProbe": {
+      "description": "Startup probe (pass-through).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/probe"
+        }
+      ],
+      "default": {}
+    },
+    "livenessProbe": {
+      "description": "Liveness probe (pass-through). Wins over `probes.http`.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/probe"
+        }
+      ],
+      "default": {}
+    },
+    "readinessProbe": {
+      "description": "Readiness probe (pass-through). Wins over `probes.http`.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/probe"
+        }
+      ],
+      "default": {}
+    },
+    "lifecycle": {
       "type": "object",
+      "description": "Container lifecycle hooks, e.g. a `preStop` sleep so a gateway stops routing before shutdown.",
       "additionalProperties": false,
       "properties": {
-        "http": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "path": { "type": "string" },
-            "port": { "$ref": "#/definitions/intOrString" }
+        "postStart": {
+          "type": "object"
+        },
+        "preStop": {
+          "type": "object"
+        },
+        "stopSignal": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "preStop": {
+            "sleep": {
+              "seconds": 5
+            }
           }
         }
-      }
+      ],
+      "default": {}
     },
-    "startupProbe": { "$ref": "#/definitions/object" },
-    "livenessProbe": { "$ref": "#/definitions/object" },
-    "readinessProbe": { "$ref": "#/definitions/object" },
-    "lifecycle": { "$ref": "#/definitions/object" },
-    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Seconds between SIGTERM and SIGKILL.",
+      "default": 30
+    },
     "autoscaling": {
       "type": "object",
+      "description": "HorizontalPodAutoscaler.",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "minReplicas": { "type": "integer", "minimum": 1 },
-        "maxReplicas": { "type": "integer", "minimum": 1 },
-        "targetCPUUtilizationPercentage": { "type": "integer", "minimum": 1 },
-        "targetMemoryUtilizationPercentage": { "type": "integer", "minimum": 1 }
+        "enabled": {
+          "type": "boolean",
+          "description": "Render a HorizontalPodAutoscaler.",
+          "default": false
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum replicas.",
+          "default": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum replicas.",
+          "default": 10
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Average CPU utilisation target, as a percentage of requests.",
+          "default": 80
+        },
+        "targetMemoryUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Average memory utilisation target, as a percentage of requests. Unset by default."
+        }
       }
     },
     "pdb": {
       "type": "object",
+      "description": "PodDisruptionBudget.",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "minAvailable": { "$ref": "#/definitions/intOrString" },
-        "maxUnavailable": { "$ref": "#/definitions/intOrString" }
+        "enabled": {
+          "type": "boolean",
+          "description": "Render a PodDisruptionBudget.",
+          "default": false
+        },
+        "minAvailable": {
+          "description": "Number or percentage of pods that must stay up. Wins over `maxUnavailable`.",
+          "examples": [
+            "50%"
+          ],
+          "allOf": [
+            {
+              "$ref": "#/definitions/countOrPercent"
+            }
+          ],
+          "default": ""
+        },
+        "maxUnavailable": {
+          "description": "Number or percentage of pods that may be down. `1` when neither is set.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/countOrPercent"
+            }
+          ],
+          "default": ""
+        }
       }
     },
     "metrics": {
       "type": "object",
+      "description": "Prometheus Operator PodMonitor or ServiceMonitor, rendered only when the monitoring.coreos.com/v1 API exists.",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "kind": { "enum": ["PodMonitor", "ServiceMonitor"] },
-        "port": {
-          "oneOf": [
-            { "type": "integer", "minimum": 1, "maximum": 65535 },
-            { "type": "string", "maxLength": 0 }
-          ]
+        "enabled": {
+          "type": "boolean",
+          "description": "Render a PodMonitor or ServiceMonitor.",
+          "default": false
         },
-        "path": { "type": "string" },
-        "interval": { "type": "string" },
-        "scrapeTimeout": { "type": "string" },
-        "labels": { "$ref": "#/definitions/object" }
+        "kind": {
+          "enum": [
+            "PodMonitor",
+            "ServiceMonitor"
+          ],
+          "description": "Kind of monitor.",
+          "default": "PodMonitor"
+        },
+        "port": {
+          "description": "Metrics port, added to the pod and Service as `metrics`. The `http` port is scraped when empty.",
+          "examples": [
+            9090
+          ],
+          "allOf": [
+            {
+              "$ref": "#/definitions/portOrEmpty"
+            }
+          ],
+          "default": ""
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/",
+          "description": "Scrape path.",
+          "default": "/metrics"
+        },
+        "interval": {
+          "description": "Scrape interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/duration"
+            }
+          ],
+          "default": "30s"
+        },
+        "scrapeTimeout": {
+          "description": "Scrape timeout. The Prometheus default when empty.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/duration"
+            }
+          ],
+          "default": ""
+        },
+        "labels": {
+          "description": "Extra labels on the monitor, e.g. the one your Prometheus selects on.",
+          "examples": [
+            {
+              "release": "prometheus"
+            }
+          ],
+          "allOf": [
+            {
+              "$ref": "#/definitions/stringMap"
+            }
+          ],
+          "default": {}
+        }
       }
     },
-    "volumes": { "$ref": "#/definitions/array" },
-    "volumeMounts": { "$ref": "#/definitions/array" },
-    "configMapRefs": { "type": "array", "items": { "$ref": "#/definitions/envFromRef" } },
-    "secretRefs": { "type": "array", "items": { "$ref": "#/definitions/envFromRef" } },
-    "env": { "$ref": "#/definitions/array" },
-    "initContainers": { "$ref": "#/definitions/array" },
-    "extraContainers": { "$ref": "#/definitions/array" },
-    "command": { "type": "array", "items": { "type": "string" } },
-    "args": { "type": "array", "items": { "type": "string" } },
-    "nodeSelector": { "$ref": "#/definitions/object" },
-    "tolerations": { "$ref": "#/definitions/array" },
-    "affinity": { "$ref": "#/definitions/object" },
-    "topologySpreadConstraints": { "$ref": "#/definitions/array" },
+    "volumes": {
+      "description": "Pod volumes (pass-through, templated), each with a `name`.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/namedList"
+        }
+      ],
+      "default": []
+    },
+    "volumeMounts": {
+      "type": "array",
+      "description": "Volume mounts of the main container (pass-through).",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "mountPath"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mountPath": {
+            "type": "string",
+            "pattern": "^/"
+          }
+        }
+      },
+      "default": []
+    },
+    "configMapRefs": {
+      "type": "array",
+      "description": "ConfigMaps loaded with `envFrom`: a name, or `{name, optional}` for one that may not exist yet.",
+      "items": {
+        "$ref": "#/definitions/envFromRef"
+      },
+      "examples": [
+        [
+          "app-config",
+          {
+            "name": "feature-flags",
+            "optional": true
+          }
+        ]
+      ],
+      "default": []
+    },
+    "secretRefs": {
+      "type": "array",
+      "description": "Secrets loaded with `envFrom`: a name, or `{name, optional}` for one created later (e.g. by an operator).",
+      "items": {
+        "$ref": "#/definitions/envFromRef"
+      },
+      "default": []
+    },
+    "env": {
+      "type": "array",
+      "description": "Environment variables (pass-through), each with a `name` and a `value` or `valueFrom`.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "value"
+            ]
+          },
+          {
+            "required": [
+              "valueFrom"
+            ]
+          },
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "value"
+                  ]
+                },
+                {
+                  "required": [
+                    "valueFrom"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "examples": [
+        [
+          {
+            "name": "LOG_LEVEL",
+            "value": "info"
+          }
+        ]
+      ],
+      "default": []
+    },
+    "initContainers": {
+      "type": "array",
+      "description": "Init containers (pass-through, templated).",
+      "items": {
+        "$ref": "#/definitions/container"
+      },
+      "default": []
+    },
+    "extraContainers": {
+      "type": "array",
+      "description": "Sidecar containers (pass-through, templated).",
+      "items": {
+        "$ref": "#/definitions/container"
+      },
+      "default": []
+    },
+    "command": {
+      "type": "array",
+      "description": "Overrides the image `ENTRYPOINT`.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "args": {
+      "type": "array",
+      "description": "Overrides the image `CMD`.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "nodeSelector": {
+      "description": "Node labels the pod must run on.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/stringMap"
+        }
+      ],
+      "default": {}
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations (pass-through).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "operator": {
+            "enum": [
+              "Exists",
+              "Equal"
+            ]
+          },
+          "effect": {
+            "enum": [
+              "",
+              "NoSchedule",
+              "PreferNoSchedule",
+              "NoExecute"
+            ]
+          }
+        }
+      },
+      "default": []
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules (pass-through).",
+      "additionalProperties": false,
+      "properties": {
+        "nodeAffinity": {
+          "type": "object"
+        },
+        "podAffinity": {
+          "type": "object"
+        },
+        "podAntiAffinity": {
+          "type": "object"
+        }
+      },
+      "default": {}
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "description": "Spread constraints (pass-through). `labelSelector` defaults to this release's pods.",
+      "items": {
+        "type": "object",
+        "required": [
+          "maxSkew",
+          "topologyKey",
+          "whenUnsatisfiable"
+        ],
+        "properties": {
+          "maxSkew": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "topologyKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "whenUnsatisfiable": {
+            "enum": [
+              "DoNotSchedule",
+              "ScheduleAnyway"
+            ]
+          }
+        }
+      },
+      "examples": [
+        [
+          {
+            "maxSkew": 1,
+            "topologyKey": "topology.kubernetes.io/zone",
+            "whenUnsatisfiable": "ScheduleAnyway"
+          }
+        ]
+      ],
+      "default": []
+    },
     "extraObjects": {
       "type": "array",
-      "items": { "type": ["object", "string"] }
+      "description": "Extra manifests, as objects or strings. Both are templated.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apiVersion",
+              "kind",
+              "metadata"
+            ]
+          },
+          {
+            "type": "string",
+            "minLength": 1
+          }
+        ]
+      },
+      "default": []
     }
   }
 }
