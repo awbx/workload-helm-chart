@@ -5,7 +5,7 @@ description: >-
   Ingress or Gateway API HTTPRoute, HPA and ServiceAccount. One chart for web
   apps, APIs, workers and stateful services.
 type: application
-version: 2.0.1
+version: 2.1.0
 appVersion: "1.0.0"
 home: https://github.com/awbx/workload-helm-chart
 sources:
@@ -36,6 +36,6 @@ annotations:
       url: https://github.com/awbx/workload-helm-chart
   artifacthub.io/changes: |
     - kind: added
-      description: README shown on Artifact Hub
-    - kind: added
-      description: Releases are signed with cosign (keyless)
+      description: Values schema describes every value, with defaults and examples
+    - kind: changed
+      description: Stricter validation (port ranges, durations, percentages, required names, enums); values Kubernetes would reject now fail at install time

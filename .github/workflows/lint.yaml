@@ -20,8 +20,8 @@ jobs:
             helm lint charts/workload -f "$f"
           done
 
-      - name: README documents every value
-        run: ./scripts/check-readme-values.sh
+      - name: Schema and README values tables up to date
+        run: ./scripts/gen-docs.py --check
 
       - name: Validate rendered manifests
         run: |
