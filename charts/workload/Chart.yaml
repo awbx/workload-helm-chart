@@ -5,7 +5,7 @@ description: >-
   Ingress or Gateway API HTTPRoute, HPA and ServiceAccount. One chart for web
   apps, APIs, workers and stateful services.
 type: application
-version: 2.0.0
+version: 2.0.1
 appVersion: "1.0.0"
 home: https://github.com/awbx/workload-helm-chart
 sources:
@@ -35,31 +35,7 @@ annotations:
     - name: Source
       url: https://github.com/awbx/workload-helm-chart
   artifacthub.io/changes: |
-    - kind: changed
-      description: "Breaking: secure defaults meeting the restricted Pod Security Standard (runAsNonRoot, RuntimeDefault seccomp, no privilege escalation, all capabilities dropped)"
-    - kind: changed
-      description: "Breaking: service account token no longer mounted by default (serviceAccount.automount: false)"
-    - kind: changed
-      description: "Breaking: default resource requests (50m CPU, 64Mi memory)"
-    - kind: changed
-      description: "Breaking: default image is nginx-unprivileged on port 8080"
     - kind: added
-      description: Optional PodMonitor / ServiceMonitor (metrics.*)
+      description: README shown on Artifact Hub
     - kind: added
-      description: containerPort, separate from service.port
-    - kind: added
-      description: PodDisruptionBudget (pdb.*)
-    - kind: added
-      description: topologySpreadConstraints with a default labelSelector
-    - kind: added
-      description: HTTP probe shortcut (probes.http.path)
-    - kind: added
-      description: lifecycle and terminationGracePeriodSeconds
-    - kind: added
-      description: extraContainers, extraObjects, priorityClassName, revisionHistoryLimit
-    - kind: added
-      description: values.schema.json rejecting unknown or mistyped values
-    - kind: added
-      description: Optional envFrom sources ({name, optional} in configMapRefs / secretRefs)
-    - kind: added
-      description: Per-rule backendRefs and timeouts on the HTTPRoute
+      description: Releases are signed with cosign (keyless)

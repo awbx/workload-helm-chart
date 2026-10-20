@@ -54,6 +54,8 @@ jobs:
       - name: Package and push chart
         if: steps.chart.outputs.released == 'false'
         run: |
+          # Artifact Hub reads the README from inside the chart package.
+          cp README.md charts/workload/README.md
           helm package charts/workload
           helm push "workload-${{ steps.chart.outputs.version }}.tgz" "oci://$REGISTRY/${REPOSITORY,,}"
 

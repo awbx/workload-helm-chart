@@ -7,7 +7,7 @@ web apps, APIs, background workers and stateful services. Use the same chart
 for every service and override only the values you need for each one.
 
 ```sh
-helm install my-api oci://ghcr.io/awbx/charts/workload --version 2.0.0 \
+helm install my-api oci://ghcr.io/awbx/charts/workload --version 2.0.1 \
   --set image.repository=ghcr.io/example/api --set image.tag=2.4.1
 ```
 
@@ -38,18 +38,18 @@ Every release is signed with [cosign](https://github.com/sigstore/cosign)
 keyless signing from the release workflow:
 
 ```sh
-cosign verify ghcr.io/awbx/charts/workload:2.0.0 \
+cosign verify ghcr.io/awbx/charts/workload:2.0.1 \
   --certificate-identity-regexp '^https://github.com/awbx/workload-helm-chart/\.github/workflows/release\.yaml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 ## Examples
 
-Ready-to-use values files are in [`examples/`](examples):
+Ready-to-use values files are in [`examples/`](https://github.com/awbx/workload-helm-chart/tree/main/examples):
 
-- [`web-api.yaml`](examples/web-api.yaml): API behind an Ingress with TLS, probes, CPU autoscaling and env from a Secret
-- [`gateway-api.yaml`](examples/gateway-api.yaml): frontend exposed through a Gateway API HTTPRoute
-- [`stateful.yaml`](examples/stateful.yaml): single replica with a ReadWriteOnce volume, `Recreate` strategy, custom args and a fixed non-root user
+- [`web-api.yaml`](https://github.com/awbx/workload-helm-chart/blob/main/examples/web-api.yaml): API behind an Ingress with TLS, probes, CPU autoscaling and env from a Secret
+- [`gateway-api.yaml`](https://github.com/awbx/workload-helm-chart/blob/main/examples/gateway-api.yaml): frontend exposed through a Gateway API HTTPRoute
+- [`stateful.yaml`](https://github.com/awbx/workload-helm-chart/blob/main/examples/stateful.yaml): single replica with a ReadWriteOnce volume, `Recreate` strategy, custom args and a fixed non-root user
 
 ```sh
 helm install my-api oci://ghcr.io/awbx/charts/workload -f examples/web-api.yaml
@@ -122,7 +122,7 @@ spec:
 source:
   repoURL: ghcr.io/awbx/charts
   chart: workload
-  targetRevision: 2.0.0
+  targetRevision: 2.0.1
   helm:
     valuesObject:
       image:
@@ -290,4 +290,4 @@ tagged `workload-<version>`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/awbx/workload-helm-chart/blob/main/LICENSE)
