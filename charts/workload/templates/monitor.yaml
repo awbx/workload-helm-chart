@@ -1,0 +1,30 @@
+{{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+apiVersion: monitoring.coreos.com/v1
+kind: {{ .Values.metrics.kind }}
+metadata:
+  name: {{ include "workload.fullname" . }}
+  labels:
+    {{- include "workload.labels" . | nindent 4 }}
+    {{- with .Values.metrics.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "workload.selectorLabels" . | nindent 6 }}
+  {{- if eq .Values.metrics.kind "PodMonitor" }}
+  podMetricsEndpoints:
+  {{- else }}
+  endpoints:
+  {{- end }}
+    - port: {{ ternary "metrics" "http" (not (empty .Values.metrics.port)) }}
+      path: {{ .Values.metrics.path }}
+      interval: {{ .Values.metrics.interval }}
+      {{- with .Values.metrics.scrapeTimeout }}
+      scrapeTimeout: {{ . }}
+      {{- end }}
+{{- end }}

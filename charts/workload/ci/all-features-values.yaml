@@ -1,0 +1,67 @@
+# Turns on every feature, so CI renders and validates all templates.
+replicaCount: 3
+containerPort: 8081
+service:
+  port: 80
+priorityClassName: high
+probes:
+  http:
+    path: /healthz
+lifecycle:
+  preStop:
+    sleep:
+      seconds: 5
+terminationGracePeriodSeconds: 45
+pdb:
+  enabled: true
+  minAvailable: "50%"
+metrics:
+  enabled: true
+  kind: ServiceMonitor
+  port: 9090
+  labels:
+    release: prometheus
+ingress:
+  enabled: true
+  className: nginx
+httpRoute:
+  enabled: true
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      timeouts:
+        request: 30s
+    - backendRefs:
+        - name: other-service
+          port: 80
+configMapRefs:
+  - app-config
+secretRefs:
+  - name: operator-issued-creds
+    optional: true
+initContainers:
+  - name: wait
+    image: busybox:1.36
+    command: ["sh", "-c", "echo {{ .Release.Name }}"]
+extraContainers:
+  - name: sidecar
+    image: busybox:1.36
+    args: ["sleep", "infinity"]
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: "{{ .Release.Name }}-extra"
+    data:
+      key: value
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Release.Name }}-extra-string
