@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write # keyless cosign signing
 
 env:
   REGISTRY: ghcr.io
@@ -31,6 +32,8 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
+      - uses: sigstore/cosign-installer@v3
+
       - name: Read chart version
         id: chart
         run: |
@@ -46,12 +49,23 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           echo "${{ secrets.GITHUB_TOKEN }}" | oras login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | cosign login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
 
       - name: Package and push chart
         if: steps.chart.outputs.released == 'false'
         run: |
           helm package charts/workload
           helm push "workload-${{ steps.chart.outputs.version }}.tgz" "oci://$REGISTRY/${REPOSITORY,,}"
+
+      # Keyless signature tied to this workflow's GitHub identity, recorded in
+      # the public Sigstore transparency log. Artifact Hub shows it as
+      # "Signed". A manual run signs the current version again.
+      - name: Sign chart
+        if: steps.chart.outputs.released == 'false' || github.event_name == 'workflow_dispatch'
+        run: |
+          ref="$REGISTRY/${REPOSITORY,,}/workload"
+          digest=$(oras resolve "$ref:${{ steps.chart.outputs.version }}")
+          cosign sign --yes "$ref@$digest"
 
       - name: Push Artifact Hub metadata
         run: |
