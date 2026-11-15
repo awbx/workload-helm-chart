@@ -7,7 +7,7 @@ web apps, APIs, background workers and stateful services. Use the same chart
 for every service and override only the values you need for each one.
 
 ```sh
-helm install my-api oci://ghcr.io/awbx/charts/workload --version 2.1.0 \
+helm install my-api oci://ghcr.io/awbx/charts/workload --version 2.2.0 \
   --set image.repository=ghcr.io/example/api --set image.tag=2.4.1
 ```
 
@@ -38,7 +38,7 @@ Every release is signed with [cosign](https://github.com/sigstore/cosign)
 keyless signing from the release workflow:
 
 ```sh
-cosign verify ghcr.io/awbx/charts/workload:2.1.0 \
+cosign verify ghcr.io/awbx/charts/workload:2.2.0 \
   --certificate-identity-regexp '^https://github.com/awbx/workload-helm-chart/\.github/workflows/release\.yaml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -122,7 +122,7 @@ spec:
 source:
   repoURL: ghcr.io/awbx/charts
   chart: workload
-  targetRevision: 2.1.0
+  targetRevision: 2.2.0
   helm:
     valuesObject:
       image:
@@ -157,6 +157,7 @@ which also validates every value at install time.
 | `imagePullSecrets` | `[]` | Pull secrets for this release, as `- name: my-secret` entries. |
 | `replicaCount` | `1` | Number of replicas. Ignored when `autoscaling.enabled` is true. |
 | `revisionHistoryLimit` | `10` | Old ReplicaSets kept for `kubectl rollout undo`. |
+| `minReadySeconds` | `0` | Seconds a new pod must stay Ready before it counts as available: a rolling update keeps the old pod until then, so a new pod that crashes soon after turning Ready never replaces the running version. 0 counts it available as soon as it is Ready. |
 | `strategy` | `{}` | Deployment update strategy. Use `type: Recreate` for pods holding a ReadWriteOnce volume. |
 | `nameOverride` | `""` | Replaces the chart name (`workload`) in resource names. |
 | `fullnameOverride` | `""` | Replaces the full resource name (`<release>-workload`). |
