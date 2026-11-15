@@ -65,3 +65,5 @@ extraObjects:
     kind: ConfigMap
     metadata:
       name: {{ .Release.Name }}-extra-string
+
+minReadySeconds: 30

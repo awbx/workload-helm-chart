@@ -223,6 +223,12 @@
       "description": "Old ReplicaSets kept for `kubectl rollout undo`.",
       "default": 10
     },
+    "minReadySeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Seconds a new pod must stay Ready before it counts as available: a rolling update keeps the old pod until then, so a new pod that crashes soon after turning Ready never replaces the running version. 0 counts it available as soon as it is Ready.",
+      "default": 0
+    },
     "strategy": {
       "type": "object",
       "description": "Deployment update strategy. Use `type: Recreate` for pods holding a ReadWriteOnce volume.",

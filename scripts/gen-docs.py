@@ -25,7 +25,7 @@ START, END = "<!-- values:start -->", "<!-- values:end -->"
 # README sections, by top-level key. Every top-level key must be listed.
 GROUPS = [
     ("Image and replicas", ["image", "global", "imagePullSecrets", "replicaCount",
-                            "revisionHistoryLimit", "strategy", "nameOverride", "fullnameOverride"]),
+                            "revisionHistoryLimit", "minReadySeconds", "strategy", "nameOverride", "fullnameOverride"]),
     ("Container", ["command", "args", "env", "configMapRefs", "secretRefs", "containerPort",
                    "resources", "securityContext", "probes", "startupProbe", "livenessProbe",
                    "readinessProbe", "lifecycle", "volumeMounts", "initContainers", "extraContainers"]),

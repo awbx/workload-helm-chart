@@ -17,6 +17,13 @@ replicaCount: 1
 # Old ReplicaSets kept for `kubectl rollout undo`.
 revisionHistoryLimit: 10
 
+# Seconds a new pod must stay Ready, without its container crashing, before
+# it counts as available. A rolling update removes an old pod only for an
+# available new one, so a pod that starts, turns Ready and crashes a few
+# seconds later never replaces the running version. 0 (the Kubernetes
+# default) counts a pod available as soon as it is Ready.
+minReadySeconds: 0
+
 # Deployment update strategy. Anything holding a ReadWriteOnce volume needs
 # `type: Recreate`: the default RollingUpdate waits for a new pod that cannot
 # attach the volume until the old one lets go, and never converges.
